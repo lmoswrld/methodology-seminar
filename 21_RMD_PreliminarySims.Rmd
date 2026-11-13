@@ -1,0 +1,174 @@
+---
+title: "Preliminary DCBM Simulations for SCORE"
+author: "Zach Nguyen"
+date: "2026-11-13"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+source("001_requirements.R")
+source("01_funct_GeneratingSimData.R")
+source("02_funct_MethodImplementation.R")
+source("03_funct_ModelEvaluation.R")
+```
+
+## Simulation design
+
+The simulated network follows a two-community DCBM. Within-community
+connections are more likely than between-community connections. The
+degree-heterogeneity parameter is held fixed at 0.55 for this preliminary
+experiment.
+
+```{r design}
+n <- 500
+sigma <- 0.55
+B <- matrix(
+  c(0.08, 0.02,
+    0.02, 0.08),
+  nrow = 2,
+  byrow = TRUE
+)
+
+B
+```
+
+## One Simulated Network
+
+This example illustrates the true communities, the simulated network, and the
+three methods’ clustering results for one generated dataset.
+
+```{r one-network}
+sim <- generate_dcbm(
+  n = n,
+  B = B,
+  sigma = sigma,
+  seed = 291
+)
+
+A <- sim$A
+actual <- sim$labels
+
+fits <- list(
+  SCORE = score_cluster(A, K = 2, seed = 291),
+  oPCA = opca_cluster(A, K = 2, seed = 291),
+  nPCA = npca_cluster(A, K = 2, seed = 291)
+)
+
+one_network_results <- do.call(rbind, lapply(names(fits), function(method) {
+  cbind(
+    data.frame(method = method),
+    evaluate_clustering(actual, fits[[method]]$labels)
+  )
+}))
+
+knitr::kable(
+  one_network_results,
+  digits = 3,
+  caption = "Results for one simulated DCBM network"
+)
+```
+
+## View The Network Structure
+
+Nodes are ordered by their known simulated community for visualization.
+
+```{r adjacency-plot, fig.width=6, fig.height=5}
+node_order <- order(actual)
+A_ordered <- A[node_order, node_order]
+
+graphics::image(
+  A_ordered,
+  col = c("white", "#17324D"),
+  axes = FALSE,
+  xlab = "Nodes ordered by true community",
+  ylab = "Nodes ordered by true community",
+  main = "Simulated adjacency matrix"
+)
+```
+
+## Monte Carlo experiment
+
+Repeat the simulation 30 times using independent seeds. Each method is fitted
+to the same network within a replication.
+
+```{r monte-carlo}
+n_reps <- 30
+
+simulation_results <- do.call(rbind, lapply(seq_len(n_reps), function(replication) {
+  run_one_simulation(
+    n = n,
+    sigma = sigma,
+    seed = 3000 + replication,
+    B = B
+  ) |>
+    transform(replication = replication)
+}))
+
+knitr::kable(
+  head(simulation_results),
+  digits = 3,
+  caption = "First rows of Monte Carlo results"
+)
+```
+
+## Summarize performance
+
+```{r summary}
+mean_results <- aggregate(
+  cbind(error_rate, ARI) ~ method,
+  data = simulation_results,
+  FUN = mean
+)
+
+sd_results <- aggregate(
+  cbind(error_rate, ARI) ~ method,
+  data = simulation_results,
+  FUN = stats::sd
+)
+
+names(sd_results)[2:3] <- c("error_rate_sd", "ARI_sd")
+
+summary_results <- merge(mean_results, sd_results, by = "method")
+
+knitr::kable(
+  summary_results,
+  digits = 3,
+  caption = "Mean and standard deviation across 30 simulated networks"
+)
+```
+
+## Compare methods across replications
+
+```{r error-boxplot, fig.width=7, fig.height=4}
+graphics::boxplot(
+  error_rate ~ method,
+  data = simulation_results,
+  xlab = "Method",
+  ylab = "Misclassification Rate (lower is better)",
+  main = "Community recovery across 30 simulations"
+)
+```
+
+```{r ari-boxplot, fig.width=7, fig.height=4}
+graphics::boxplot(
+  ARI ~ method,
+  data = simulation_results,
+  xlab = "Method",
+  ylab = "Adjusted Rand Index (higher is better)",
+  main = "Partition agreement across 30 simulations"
+)
+```
+
+## Interpretation
+
+The adjacency plot shows a visible block pattern: connections are denser within the two true communities than between them. This is the structure the simulated DCBM was designed to produce.
+
+In the illustrated network, all three methods recover the communities well. nPCA performs best in that one replication, with 3 errors (0.6%) and ARI 0.976. SCORE has 9 errors (1.8%; ARI 0.929), while oPCA has 10 (2.0%; ARI 0.921).
+
+Across 30 simulated networks, nPCA performs best on average: its mean error rate is 0.007 and mean ARI is 0.972. SCORE and oPCA are close to each other, with mean error rates of 0.013 and 0.014 and mean ARIs of 0.947 and 0.944, respectively. The boxplots show some variation across networks, but all three methods recover the communities accurately under this simulation setup.
+
+This doesn’t contradict the political blogs results, where SCORE performed best. It suggests the ranking depends on the data: this simulation has two balanced communities, a fixed within- versus between-community connection pattern, and lognormal degree heterogeneity set to $\sigma=0.55$. Under those conditions, degree normalization appears to work especially well. These results support nPCA for this particular design; they do not establish that it will generally outperform SCORE.
