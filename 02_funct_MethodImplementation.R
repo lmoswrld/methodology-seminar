@@ -29,10 +29,14 @@ leading_eigenvectors <- function(M, K = 2L) {
   if (!requireNamespace("RSpectra", quietly = TRUE)) {
     stop("Install RSpectra to compute the leading eigenvectors.", call. = FALSE)
   }
-  
+
+  # RSpectra's compiled symmetric solver requires double-precision (REAL) input;
+  # binary adjacency matrices are often stored as integers in R.
+  storage.mode(M) <- "double"
+
   decomposition <- RSpectra::eigs_sym(M, k = K, which = "LM")
   ordering <- order(abs(decomposition$values), decreasing = TRUE)
-  
+
   list(
     values = decomposition$values[ordering],
     vectors = decomposition$vectors[, ordering, drop = FALSE]
@@ -47,7 +51,7 @@ cluster_coordinates <- function(coordinates, K, nstart = 100L, seed = 1L) {
   }
   if (nrow(coordinates) <= K) stop("There must be more nodes than clusters.", call. = FALSE)
   if (length(nstart) != 1L || nstart < 1L) stop("nstart must be positive.", call. = FALSE)
-  
+
   set.seed(seed)
   fit <- stats::kmeans(coordinates, centers = K, nstart = nstart)
   list(labels = fit$cluster, coordinates = coordinates,
@@ -62,14 +66,14 @@ score_cluster <- function(A, K = 2L, threshold = log(nrow(A)),
   if (length(threshold) != 1L || !is.finite(threshold) || threshold <= 0) {
     stop("threshold must be a positive finite number.", call. = FALSE)
   }
-  
+
   eig <- leading_eigenvectors(A, K)
   U <- eig$vectors
   denominator <- U[, 1L]
   floor_value <- sqrt(.Machine$double.eps)
   small <- abs(denominator) < floor_value
   denominator[small] <- ifelse(denominator[small] < 0, -floor_value, floor_value)
-  
+
   ratios <- sweep(U[, -1L, drop = FALSE], 1L, denominator, "/")
   ratios <- pmax(pmin(ratios, threshold), -threshold)
   fit <- cluster_coordinates(ratios, K, nstart, seed)
@@ -93,7 +97,7 @@ npca_cluster <- function(A, K = 2L, nstart = 100L, seed = 1L) {
   inv_sqrt_degree <- ifelse(degree > 0, 1 / sqrt(degree), 0)
   normalized_A <- sweep(A, 1L, inv_sqrt_degree, `*`)
   normalized_A <- sweep(normalized_A, 2L, inv_sqrt_degree, `*`)
-  
+
   eig <- leading_eigenvectors(normalized_A, K)
   fit <- cluster_coordinates(eig$vectors, K, nstart, seed)
   fit$eigenvalues <- eig$values
