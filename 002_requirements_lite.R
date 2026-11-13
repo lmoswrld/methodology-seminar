@@ -2,6 +2,7 @@
 
 required_packages <- c(
   "gsbm",
+  "RSpectra",
   "mclust",
   "ggplot2",
   "knitr",
