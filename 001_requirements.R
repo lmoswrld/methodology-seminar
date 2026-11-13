@@ -2,6 +2,7 @@
 
 required_packages <- c(
   "gsbm",      # Political blogs network data
+  "RSpectra",  # Computes eigenvalues
   "mclust",    # Adjusted Rand Index
   "ggplot2",   # Simulation plots
   "knitr",     # R Markdown knitting
