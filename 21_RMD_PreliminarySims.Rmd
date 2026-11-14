@@ -162,13 +162,3 @@ graphics::boxplot(
   main = "Partition agreement across 30 simulations"
 )
 ```
-
-## Interpretation
-
-The adjacency plot shows a visible block pattern: connections are denser within the two true communities than between them. This is the structure the simulated DCBM was designed to produce.
-
-In the illustrated network, all three methods recover the communities well. nPCA performs best in that one replication, with 3 errors (0.6%) and ARI 0.976. SCORE has 9 errors (1.8%; ARI 0.929), while oPCA has 10 (2.0%; ARI 0.921).
-
-Across 30 simulated networks, nPCA performs best on average: its mean error rate is 0.007 and mean ARI is 0.972. SCORE and oPCA are close to each other, with mean error rates of 0.013 and 0.014 and mean ARIs of 0.947 and 0.944, respectively. The boxplots show some variation across networks, but all three methods recover the communities accurately under this simulation setup.
-
-This doesn’t contradict the political blogs results, where SCORE performed best. It suggests the ranking depends on the data: this simulation has two balanced communities, a fixed within- versus between-community connection pattern, and lognormal degree heterogeneity set to $\sigma=0.55$. Under those conditions, degree normalization appears to work especially well. These results support nPCA for this particular design; they do not establish that it will generally outperform SCORE.
