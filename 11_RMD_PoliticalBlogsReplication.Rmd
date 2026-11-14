@@ -50,7 +50,7 @@ source("02_funct_MethodImplementation.R")
 fits <- list(
   SCORE = score_cluster(A, K = 2, seed = 293),
   oPCA = opca_cluster(A, K = 2, seed = 297),
-  nPCA = npca_cluster(A, K = 2, seed = 293)
+  nPCA = npca_cluster(A, K = 2, seed = 297)
 )
 
 real_results <- do.call(rbind, lapply(names(fits), function(method) {
@@ -72,8 +72,18 @@ knitr::kable(
 The reference labels are used only to color this plot after fitting SCORE.
 
 ```{r score-plot, fig.width=7, fig.height=4}
-label_factor <- factor(actual)
-label_colors <- c("#0072B2", "#D55E00")[as.integer(label_factor)]
+label_factor <- factor(
+  as.character(actual),
+  levels = c("0", "1"),
+  labels = c("Liberal", "Conservative")
+)
+
+color_key <- c(
+  Liberal = "#0072B2",
+  Conservative = "#D55E00"
+)
+
+label_colors <- unname(color_key[as.character(label_factor)])
 
 graphics::plot(
   x = seq_along(actual),
@@ -82,26 +92,18 @@ graphics::plot(
   pch = 16,
   xlab = "Blog index",
   ylab = "SCORE eigenvector ratio",
-  main = "SCORE ratios colored by political reference label"
+  main = "SCORE ratios by political reference label"
 )
 
 graphics::legend(
   "topright",
-  legend = levels(label_factor),
-  col = c("#0072B2", "#D55E00"),
+  legend = names(color_key),
+  col = unname(color_key),
   pch = 16,
   title = "Reference label"
 )
 ```
 
-## Interpretation
-
-The results suggest that SCORE recovers the political-blog communities much better than oPCA or nPCA in this run:
-- SCORE: 58 errors out of 1,222 (4.7%); ARI = 0.819.
-- oPCA: 437 errors (35.8%); ARI = 0.080, indicating weak agreement with the reference labels.
-- nPCA: 590 errors (48.3%); ARI = 0.000 to the displayed precision, indicating little adjusted agreement.
-
-In the ratio plot, label 0 blogs tend to have higher SCORE ratios, while label 1 blogs tend to have lower ratios. There are outliers and some overlap, so the separation is strong but imperfect. The labels color the plot after fitting; SCORE itself used the network, not the political labels.
 
 
 ## Rerunning nPCA Over Several Seeds
@@ -116,4 +118,3 @@ summary(nPCA_by_seed$error_rate)
 range(nPCA_by_seed$errors)
 ```
 
-The only discrepency with Jin (2015) was for nPCA, where we found 590 errors and Jin found 600 errors. We did find 600 errors in an earlier trial run, so we tested whether nPCA is sensitive to initialization. We found that the 590-error result was stable across seeds, though a few seeds give higher error up to 600, which likely explains our contradicting results.
